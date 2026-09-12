@@ -38,13 +38,13 @@ class DNSParser(BaseParser):
 
         domain_str = str(domain).lower()
         subdomains = domain_str.split(".")
-        has_long_subdomain = any(len(sub) >= 15 for sub in subdomains[:-2])
+        has_tunneling_subdomain = any(len(sub) >= 40 for sub in subdomains[:-2])
 
         if any(domain_str.endswith(tld) for tld in _SUSPICIOUS_TLDS):
             severity = "MEDIUM"
             event_type = "dns_suspicious_tld"
 
-        if has_long_subdomain or _HEX_OR_B64_SUBDOMAIN.search(domain_str) or len(domain_str) > 30:
+        if has_tunneling_subdomain or _HEX_OR_B64_SUBDOMAIN.search(domain_str):
             severity = "HIGH"
             event_type = "dns_potential_tunneling"
 

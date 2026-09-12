@@ -106,64 +106,31 @@ export default function IncidentOverview({
   };
 
   return (
-    <section id="section-incident-overview" className="section-incident-overview">
+    <section id="section-incident-overview" className="section-incident-overview" style={{ width: '100%' }}>
       <div className="section-header-box" style={{ marginBottom: "2rem" }}>
-  <h2 className="section-main-heading" style={{ fontSize: "clamp(3rem, 5vw, 5rem)", fontWeight: 900, textTransform: "uppercase", letterSpacing: "-0.04em" }}>Incident Overview</h2>
-</div>
-        <h2 className="section-main-heading">Incident Overview & Triage</h2>
-        <p className="section-sub-text">
-          Real-time incident queue correlated from database telemetry events. Select an incident to inspect its attack parameters.
-        </p>
+        <h2 className="section-main-heading" style={{ fontSize: "clamp(3rem, 5vw, 5rem)", fontWeight: 900, textTransform: "uppercase", letterSpacing: "-0.04em", color: "var(--text-ivory)" }}>Incident Overview</h2>
       </div>
 
-      <div className="incident-grid-layout">
+      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '2rem', alignItems: 'start', width: '100%' }}>
         
         {/* 1. Active Incident List */}
-        <div className="incident-list-panel">
-          <div className="panel-top-bar">
-            <div className="panel-heading">
-              <span>Active Incidents</span>
-              <span className="count-pill">{incidents.length}</span>
-            </div>
-            <button 
-              onClick={() => loadIncidents()} 
-              className="refresh-btn" 
-              title="Refresh Incidents from API"
-              disabled={loadingList}
-            >
-              {loadingList ? '...' : '↻'}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--bg-border)', paddingBottom: '0.5rem' }}>
+            <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Incidents Queue</span>
+            <button onClick={() => loadIncidents()} disabled={loadingList} style={{ background: 'transparent', border: '1px solid var(--bg-border)', color: 'var(--text-ivory)', padding: '0.2rem 0.5rem', cursor: 'pointer', fontSize: '0.7rem' }}>
+              {loadingList ? '...' : 'REFRESH'}
             </button>
           </div>
 
-          {/* Loading State */}
-          {loadingList && (
-            <div className="state-notice">
-              <span className="spinner-dot"></span>
-              Loading active incidents from API...
-            </div>
+          {loadingList && <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Loading...</div>}
+          {errorList && <div style={{ color: '#f43f5e', fontSize: '0.8rem' }}>Error: {errorList}</div>}
+          
+          {!loadingList && incidents.length === 0 && (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>No incidents found.</div>
           )}
 
-          {/* Error State */}
-          {errorList && (
-            <div className="state-notice error">
-              <strong>Error:</strong> {errorList}
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!loadingList && !errorList && incidents.length === 0 && (
-            <div className="state-notice empty">
-              <div style={{ fontSize: '1.75rem', marginBottom: '0.4rem' }}>🛡️</div>
-              <strong>No incidents found.</strong>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                Run correlation or ingest logs to generate security incidents.
-              </p>
-            </div>
-          )}
-
-          {/* Incident Cards */}
           {!loadingList && incidents.length > 0 && (
-            <div className="incident-cards-scroll">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '600px', overflowY: 'auto' }}>
               {incidents.map((inc) => {
                 const isSelected = (selectedIncidentData?.incident?.id || selectedIncidentId) === inc.id;
                 const sevStyle = getSeverityStyle(inc.severity);
@@ -171,28 +138,22 @@ export default function IncidentOverview({
                   <div
                     key={inc.id}
                     onClick={() => handleSelect(inc.id)}
-                    className={`incident-list-item ${isSelected ? 'selected' : ''}`}
+                    style={{
+                      padding: '1rem',
+                      border: isSelected ? '1px solid var(--text-ivory)' : '1px solid var(--bg-border)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.5rem',
+                      background: 'transparent'
+                    }}
                   >
-                    <div className="item-row-top">
-                      <span className="inc-id-tag">{inc.id}</span>
-                      <span 
-                        className="inc-sev-badge"
-                        style={{ background: sevStyle.bg, color: sevStyle.color, border: `1px solid ${sevStyle.border}` }}
-                      >
-                        {inc.severity}
-                      </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-ivory)' }}>{inc.id}</span>
+                      <span style={{ fontSize: '0.65rem', color: sevStyle.color, border: `1px solid ${sevStyle.border}`, padding: '0.1rem 0.4rem', textTransform: 'uppercase' }}>{inc.severity}</span>
                     </div>
-
-                    <div className="inc-title-text">
-                      {inc.title}
-                    </div>
-
-                    <div className="item-row-bottom">
-                      <span className="inc-status-tag">Status: <strong>{inc.status}</strong></span>
-                      <span className="inc-time-tag">
-                        {inc.created_at ? new Date(inc.created_at).toLocaleTimeString() : 'Recent'}
-                      </span>
-                    </div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-ivory)', fontWeight: 600 }}>{inc.title}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{inc.status}</div>
                   </div>
                 );
               })}
@@ -200,138 +161,69 @@ export default function IncidentOverview({
           )}
         </div>
 
-        {/* 2. Selected Incident Overview & Details */}
-        <div className="incident-details-panel">
-          {loadingDetails && (
-            <div className="state-notice" style={{ minHeight: '340px' }}>
-              <span className="spinner-dot"></span>
-              Loading incident telemetry details...
-            </div>
-          )}
-
-          {errorDetails && (
-            <div className="state-notice error" style={{ minHeight: '340px' }}>
-              <strong>Failed to load incident details:</strong> {errorDetails}
-            </div>
-          )}
-
+        {/* 2. Selected Incident Details */}
+        <div>
+          {loadingDetails && <div style={{ color: 'var(--text-muted)', padding: '2rem' }}>Loading details...</div>}
+          {errorDetails && <div style={{ color: '#f43f5e', padding: '2rem' }}>Error: {errorDetails}</div>}
+          
           {!loadingDetails && !errorDetails && !incident && (
-            <div className="state-notice empty" style={{ minHeight: '340px' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🔍</div>
-              <h3>Select an incident</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                Choose an incident from the queue on the left to inspect its parameters.
-              </p>
-            </div>
+            <div style={{ color: 'var(--text-muted)', padding: '2rem', border: '1px solid var(--bg-border)' }}>Select an incident from the queue.</div>
           )}
 
           {!loadingDetails && !errorDetails && incident && (
-            <div className="incident-overview-body">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
               
-              {/* Header Info */}
-              <div className="overview-header-row">
-                <div>
-                  <div className="meta-pill-group">
-                    <span className="inc-id-hero">{incident.id}</span>
-                    <span 
-                      className="inc-sev-badge-large"
-                      style={{ 
-                        background: getSeverityStyle(incident.severity).bg, 
-                        color: getSeverityStyle(incident.severity).color, 
-                        border: `1px solid ${getSeverityStyle(incident.severity).border}` 
-                      }}
-                    >
-                      {incident.severity}
-                    </span>
-                    <span className="inc-status-pill">
-                      ● {incident.status}
-                    </span>
-                  </div>
-                  
-                  <h3 className="overview-title-heading">{incident.title}</h3>
+              <div>
+                <div style={{ fontSize: 'clamp(4rem, 8vw, 8rem)', fontWeight: 900, lineHeight: 0.9, letterSpacing: '-0.05em', color: 'var(--text-ivory)' }}>
+                  {incident.id}
+                </div>
+                <div style={{ marginTop: '1rem', fontSize: '1.25rem', color: 'var(--text-muted)' }}>
+                  {incident.title}
                 </div>
               </div>
 
-              {/* Parameter Metrics Grid */}
-              <div className="overview-metrics-grid">
-                
-                <div className="metric-box">
-                  <div className="metric-box-label">AFFECTED HOST(S)</div>
-                  <div className="metric-box-value">
-                    {affectedHosts.length > 0 ? (
-                      affectedHosts.map((h, i) => (
-                        <span key={i} className="entity-chip host">{h}</span>
-                      ))
-                    ) : (
-                      <span className="muted-dash">None specified</span>
-                    )}
+              <div style={{ border: '1px solid var(--bg-border)', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Severity</div>
+                    <div style={{ color: getSeverityStyle(incident.severity).color, fontWeight: 700, fontSize: '1.5rem', textTransform: 'uppercase' }}>{incident.severity}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Status</div>
+                    <div style={{ color: 'var(--text-ivory)', fontSize: '1.5rem', textTransform: 'uppercase' }}>{incident.status}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Attack Window</div>
+                    <div style={{ color: 'var(--text-ivory)', fontSize: '0.9rem', fontFamily: 'var(--font-mono)' }}>{attackWindow}</div>
                   </div>
                 </div>
 
-                <div className="metric-box">
-                  <div className="metric-box-label">AFFECTED USER(S)</div>
-                  <div className="metric-box-value">
-                    {affectedUsers.length > 0 ? (
-                      affectedUsers.map((u, i) => (
-                        <span key={i} className="entity-chip user">{u}</span>
-                      ))
-                    ) : (
-                      <span className="muted-dash">None specified</span>
-                    )}
+                <div style={{ borderTop: '1px solid var(--bg-border)', paddingTop: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Affected Hosts</div>
+                    <div style={{ color: 'var(--text-ivory)', fontSize: '1rem' }}>{affectedHosts.length > 0 ? affectedHosts.join(', ') : 'None'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Affected Users</div>
+                    <div style={{ color: 'var(--text-ivory)', fontSize: '1rem' }}>{affectedUsers.length > 0 ? affectedUsers.join(', ') : 'None'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Extracted IOCs</div>
+                    <div style={{ color: 'var(--text-ivory)', fontSize: '1.5rem' }}>{extractedIOCs.size}</div>
                   </div>
                 </div>
 
-                <div className="metric-box">
-                  <div className="metric-box-label">RELATED EVENTS</div>
-                  <div className="metric-box-value highlight-num">
-                    {events.length > 0 ? events.length : (incident.event_ids?.length || 0)}
+                <div style={{ borderTop: '1px solid var(--bg-border)', paddingTop: '1.5rem' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Summary</div>
+                  <div style={{ color: 'var(--text-muted)', lineHeight: 1.6, fontSize: '0.9rem' }}>
+                    {incident.description || `Security incident ${incident.id} comprises ${events.length} correlated events on host ${affectedHosts.join(', ') || 'N/A'} with severity rating ${incident.severity}.`}
                   </div>
                 </div>
-
-                <div className="metric-box">
-                  <div className="metric-box-label">EXTRACTED IOCs</div>
-                  <div className="metric-box-value highlight-num">
-                    {extractedIOCs.size}
-                  </div>
-                </div>
-
-                <div className="metric-box">
-                  <div className="metric-box-label">CONFIDENCE</div>
-                  <div className="metric-box-value" style={{ color: maxConfidence > 0.8 ? '#34d399' : '#fbbf24' }}>
-                    {maxConfidence > 0 ? `${Math.round(maxConfidence * 100)}%` : 'Calculated'}
-                  </div>
-                </div>
-
-                <div className="metric-box" style={{ gridColumn: 'span 2' }}>
-                  <div className="metric-box-label">ATTACK TIME WINDOW</div>
-                  <div className="metric-box-value mono-text" style={{ fontSize: '0.8rem' }}>
-                    {attackWindow}
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Concise Incident Summary */}
-              <div className="overview-summary-card">
-                <div className="summary-card-title">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                    <polyline points="10 9 9 9 8 9" />
-                  </svg>
-                  <span>Concise Incident Summary</span>
-                </div>
-                <p className="summary-card-text">
-                  {incident.description || `Security incident ${incident.id} comprises ${events.length} correlated events on host ${affectedHosts.join(', ') || 'N/A'} with severity rating ${incident.severity}.`}
-                </p>
               </div>
 
             </div>
           )}
         </div>
-
       </div>
     </section>
   );

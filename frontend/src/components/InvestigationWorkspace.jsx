@@ -393,77 +393,16 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
           <aside className="tablet-sidebar">
             {/* 1. Page Navigation Glass Card (EXCLUSIVELY HERE on Sidebar) */}
             <div className="sidebar-glass-nav-card">
-              <div className="sidebar-section-header">
-                <span className="sidebar-section-tag">CONSOLE PAGES</span>
-                <span className="sidebar-section-meta">4 MODULES</span>
-              </div>
+              
 
               <div className="sidebar-page-nav-list">
-                <button
-                  onClick={() => handlePageChange('overview')}
-                  className={`sidebar-nav-btn ${activeTab === 'overview' ? 'active' : ''}`}
-                >
-                  <div className="nav-btn-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                      <polyline points="9 22 9 12 15 12 15 22" />
-                    </svg>
-                  </div>
-                  <div className="nav-btn-text-col">
-                    <span className="nav-btn-title">Overview</span>
-                    <span className="nav-btn-desc">Triage & Summary</span>
-                  </div>
-                  <span className="nav-btn-badge">01</span>
-                </button>
+                <button onClick={() => handlePageChange('overview')} className={`sidebar-nav-btn ${activeTab === 'overview' ? 'active' : ''}`}> <span className="nav-btn-title">Overview</span> </button>
 
-                <button
-                  onClick={() => handlePageChange('timeline')}
-                  className={`sidebar-nav-btn ${activeTab === 'timeline' ? 'active' : ''}`}
-                >
-                  <div className="nav-btn-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                  </div>
-                  <div className="nav-btn-text-col">
-                    <span className="nav-btn-title">Attack Timeline</span>
-                    <span className="nav-btn-desc">Chronological Milestones</span>
-                  </div>
-                  <span className="nav-btn-badge">02</span>
-                </button>
+                <button onClick={() => handlePageChange('timeline')} className={`sidebar-nav-btn ${activeTab === 'timeline' ? 'active' : ''}`}> <span className="nav-btn-title">Attack Timeline</span> </button>
 
-                <button
-                  onClick={() => handlePageChange('threat_intel')}
-                  className={`sidebar-nav-btn ${activeTab === 'threat_intel' ? 'active' : ''}`}
-                >
-                  <div className="nav-btn-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                    </svg>
-                  </div>
-                  <div className="nav-btn-text-col">
-                    <span className="nav-btn-title">Threat Intel</span>
-                    <span className="nav-btn-desc">IOCs & MITRE Matrix</span>
-                  </div>
-                  <span className="nav-btn-badge">03</span>
-                </button>
+                <button onClick={() => handlePageChange('threat_intel')} className={`sidebar-nav-btn ${activeTab === 'threat_intel' ? 'active' : ''}`}> <span className="nav-btn-title">Threat Intel</span> </button>
 
-                <button
-                  onClick={() => handlePageChange('ai_investigation')}
-                  className={`sidebar-nav-btn ${activeTab === 'ai_investigation' ? 'active' : ''}`}
-                >
-                  <div className="nav-btn-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                    </svg>
-                  </div>
-                  <div className="nav-btn-text-col">
-                    <span className="nav-btn-title">AI Investigation</span>
-                    <span className="nav-btn-desc">Synthesis & Response</span>
-                  </div>
-                  <span className="nav-btn-badge">04</span>
-                </button>
+                <button onClick={() => handlePageChange('ai_investigation')} className={`sidebar-nav-btn ${activeTab === 'ai_investigation' ? 'active' : ''}`}> <span className="nav-btn-title">AI Investigation</span> </button>
               </div>
             </div>
 

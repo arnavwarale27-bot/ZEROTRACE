@@ -94,12 +94,8 @@ export default function AttackInvestigation({ selectedIncidentId, selectedIncide
 
   return (
     <section id="section-attack-investigation" className="section-attack-investigation">
-      <div className="section-header-box">
-        <div className="section-badge-tag">SECTION 02</div>
-        <h2 className="section-main-heading">Attack Investigation & Timeline</h2>
-        <p className="section-sub-text">
-          Chronological sequence of verified telemetry milestones reconstructed from database security events for Incident <span className="mono-highlight">{selectedIncidentId || 'None'}</span>.
-        </p>
+      <div className="section-header-box" style={{ marginBottom: "2rem" }}>
+        <h2 className="section-main-heading" style={{ fontSize: "clamp(3rem, 5vw, 5rem)", fontWeight: 900, textTransform: "uppercase", letterSpacing: "-0.04em" }}>Attack Timeline</h2>
       </div>
 
       <div className="timeline-container-card">
@@ -151,155 +147,41 @@ export default function AttackInvestigation({ selectedIncidentId, selectedIncide
               const sevStyle = getSeverityBadge(sevVal);
 
               return (
-                <div key={item.id || idx} className={`timeline-node ${isExpanded ? 'expanded' : ''}`}>
+                <div key={item.id || idx} style={{ borderBottom: '1px solid var(--bg-border)', padding: '1.5rem 0', display: 'flex', gap: '1.5rem', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', cursor: 'pointer' }} onClick={() => handleToggleEvent(item.source_event_id)}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {new Date(item.timestamp).toISOString().replace('T', ' ').slice(0, 19)}Z
+                      </div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-ivory)' }}>
+                        {item.title}
+                      </div>
+                    </div>
+                    <div style={{ padding: '0.2rem 0.5rem', border: '1px solid var(--bg-border)', fontSize: '0.7rem', color: sevStyle.color, textTransform: 'uppercase' }}>
+                      {sevVal}
+                    </div>
+                  </div>
                   
-                  {/* Left Rail / Sequence Pillar */}
-                  <div className="timeline-rail">
-                    <div className="rail-marker">
-                      <span className="seq-badge">#{item.sequence + 1}</span>
-                    </div>
-                    {idx < timeline.length - 1 && <div className="rail-line"></div>}
-                  </div>
-
-                  {/* Main Event Milestone Card */}
-                  <div className="timeline-card-content">
-                    
-                    {/* Header Row */}
-                    <div 
-                      className="milestone-header-clickable"
-                      onClick={() => handleToggleEvent(item.source_event_id)}
-                    >
-                      <div className="milestone-title-col">
-                        <div className="milestone-meta-pills">
-                          <span className="source-tag">[{item.title.split(']')[0].replace('[', '')}]</span>
-                          <span 
-                            className="sev-chip"
-                            style={{ background: sevStyle.bg, color: sevStyle.color, border: `1px solid ${sevStyle.border}` }}
-                          >
-                            {sevVal}
-                          </span>
-                          <span className="nature-chip observed">OBSERVED TELEMETRY</span>
-                          <span className="timestamp-mono">
-                            {new Date(item.timestamp).toISOString().replace('T', ' ').slice(0, 19)}Z
-                          </span>
-                        </div>
-                        
-                        <h4 className="milestone-title-text">{item.title}</h4>
+                  {isExpanded && (
+                    <div style={{ padding: '1rem', border: '1px solid var(--bg-border)', background: 'transparent' }}>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem', lineHeight: 1.5 }}>{item.description}</p>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                        <div><span style={{ fontSize: '0.65rem', color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block' }}>Event ID</span><span style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }}>{item.source_event_id}</span></div>
+                        <div><span style={{ fontSize: '0.65rem', color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block' }}>Type</span><span style={{ fontSize: '0.8rem' }}>{item.event_type}</span></div>
+                        <div><span style={{ fontSize: '0.65rem', color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block' }}>Host</span><span style={{ fontSize: '0.8rem' }}>{hostVal}</span></div>
+                        <div><span style={{ fontSize: '0.65rem', color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block' }}>User</span><span style={{ fontSize: '0.8rem' }}>{userVal}</span></div>
+                        <div><span style={{ fontSize: '0.65rem', color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block' }}>Stage</span><span style={{ fontSize: '0.8rem', color: 'var(--accent-amber)' }}>{attackStage}</span></div>
                       </div>
-
-                      <div className="milestone-toggle-btn">
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          {isExpanded ? 'Hide Raw' : 'Inspect Telemetry'}
-                        </span>
-                        <svg 
-                          width="16" 
-                          height="16" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          strokeWidth="2.5"
-                          style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }}
-                        >
-                          <path d="M6 9l6 6 6-6" />
-                        </svg>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    <p className="milestone-desc-text">
-                      {item.description}
-                    </p>
-
-                    {/* Parameter Attributes Grid */}
-                    <div className="milestone-params-grid">
-                      <div className="param-item">
-                        <span className="param-lbl">EVENT ID</span>
-                        <span className="param-val mono-cyan">{item.source_event_id}</span>
-                      </div>
-
-                      <div className="param-item">
-                        <span className="param-lbl">EVENT TYPE</span>
-                        <span className="param-val">{item.event_type}</span>
-                      </div>
-
-                      <div className="param-item">
-                        <span className="param-lbl">HOST</span>
-                        <span className="param-val">{hostVal}</span>
-                      </div>
-
-                      <div className="param-item">
-                        <span className="param-lbl">USER</span>
-                        <span className="param-val">{userVal}</span>
-                      </div>
-
-                      {ipVal && (
-                        <div className="param-item">
-                          <span className="param-lbl">IP ADDRESS</span>
-                          <span className="param-val mono-val">{ipVal}</span>
-                        </div>
+                      
+                      {detailObj?.loading && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Loading raw telemetry...</div>}
+                      {fullEvent && (
+                        <pre style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', overflowX: 'auto', padding: '1rem', borderTop: '1px solid var(--bg-border)' }}>
+                          {JSON.stringify(fullEvent, null, 2)}
+                        </pre>
                       )}
-
-                      {procVal && (
-                        <div className="param-item">
-                          <span className="param-lbl">PROCESS</span>
-                          <span className="param-val mono-val">{procVal}</span>
-                        </div>
-                      )}
-
-                      <div className="param-item">
-                        <span className="param-lbl">ATTACK STAGE</span>
-                        <span className="param-val" style={{ color: '#fbbf24' }}>{attackStage}</span>
-                      </div>
-
-                      {attackId && (
-                        <div className="param-item">
-                          <span className="param-lbl">MITRE ATTACK ID</span>
-                          <span className="param-val mono-cyan">{attackId}</span>
-                        </div>
-                      )}
-
-                      <div className="param-item">
-                        <span className="param-lbl">EVIDENCE REF</span>
-                        <span className="param-val mono-val">{item.id}</span>
-                      </div>
                     </div>
-
-                    {/* Expanded Telemetry & Raw Data Viewer */}
-                    {isExpanded && (
-                      <div className="raw-telemetry-expand-box">
-                        <div className="raw-box-header">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="16 18 22 12 16 6" />
-                              <polyline points="8 6 2 12 8 18" />
-                            </svg>
-                            <span>Canonical SecurityEvent & Preserved raw_data</span>
-                          </div>
-                          <span className="mono-tag-pill">{item.source_event_id}</span>
-                        </div>
-
-                        {detailObj?.loading && (
-                          <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                            <span className="spinner-dot" style={{ width: '14px', height: '14px', marginBottom: '0.4rem' }}></span>
-                            Fetching normalized event payload from GET /api/v1/events/{item.source_event_id}...
-                          </div>
-                        )}
-
-                        {detailObj?.error && (
-                          <div style={{ padding: '1rem', color: '#fb7185', fontSize: '0.85rem' }}>
-                            <strong>Error loading event payload:</strong> {detailObj.error}
-                          </div>
-                        )}
-
-                        {fullEvent && (
-                          <div className="json-code-view">
-                            <pre>{JSON.stringify(fullEvent, null, 2)}</pre>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                  </div>
+                  )}
                 </div>
               );
             })}

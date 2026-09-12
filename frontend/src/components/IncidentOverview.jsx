@@ -107,8 +107,9 @@ export default function IncidentOverview({
 
   return (
     <section id="section-incident-overview" className="section-incident-overview">
-      <div className="section-header-box">
-        <div className="section-badge-tag">SECTION 01</div>
+      <div className="section-header-box" style={{ marginBottom: "2rem" }}>
+  <h2 className="section-main-heading" style={{ fontSize: "clamp(3rem, 5vw, 5rem)", fontWeight: 900, textTransform: "uppercase", letterSpacing: "-0.04em" }}>Incident Overview</h2>
+</div>
         <h2 className="section-main-heading">Incident Overview & Triage</h2>
         <p className="section-sub-text">
           Real-time incident queue correlated from database telemetry events. Select an incident to inspect its attack parameters.

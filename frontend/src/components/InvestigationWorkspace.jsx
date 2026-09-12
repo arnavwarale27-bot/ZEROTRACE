@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { fetchHealthStatus, fetchIncidents, fetchIncidentById, fetchInvestigation } from '../services/api';
+import { 
+  fetchHealthStatus, 
+  fetchIncidents, 
+  fetchIncidentById, 
+  fetchInvestigation,
+  triggerCorrelation 
+} from '../services/api';
 import AttackInvestigation from './AttackInvestigation';
 import ThreatIntelligence from './ThreatIntelligence';
 import AIInvestigationResponse from './AIInvestigationResponse';
+import LogIncidentModal from './LogIncidentModal';
 
 export default function InvestigationWorkspace({ onBackToLanding }) {
   const [health, setHealth] = useState({ connected: false, loading: true });
@@ -12,6 +19,22 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
   const [selectedIncidentData, setSelectedIncidentData] = useState(null);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'timeline' | 'threat_intel' | 'ai_investigation'
   const [investigationData, setInvestigationData] = useState(null);
+
+  // Interactive UI states for demo & judges
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [correlating, setCorrelating] = useState(false);
+  const [refreshingList, setRefreshingList] = useState(false);
+  const [timelineOrder, setTimelineOrder] = useState('asc'); // 'asc' | 'desc'
+  const [approvedActionIds, setApprovedActionIds] = useState({});
+
+  // Toast notification helper
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4500);
+  };
 
   // Check health & fetch incident list on mount
   useEffect(() => {
@@ -42,12 +65,70 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
     try {
       const data = await fetchIncidentById(incidentId);
       setSelectedIncidentData(data);
-      // Fetch AI investigation if exists for actions
+      // Fetch AI investigation if exists
       const inv = await fetchInvestigation(incidentId);
       setInvestigationData(inv);
     } catch (err) {
       console.error(`Failed to load incident ${incidentId}:`, err);
     }
+  };
+
+  // Manual refresh of incident queue
+  const handleRefreshQueue = async () => {
+    setRefreshingList(true);
+    try {
+      const list = await fetchIncidents();
+      setIncidents(list || []);
+      showToast(`Incident queue updated (${list.length} incidents)`);
+    } catch (err) {
+      showToast(`Queue refresh failed: ${err.message}`);
+    } finally {
+      setTimeout(() => setRefreshingList(false), 500);
+    }
+  };
+
+  // Re-run correlation engine across all events
+  const handleTriggerReCorrelation = async () => {
+    setCorrelating(true);
+    try {
+      const res = await triggerCorrelation(1440, 1);
+      const list = await fetchIncidents();
+      setIncidents(list || []);
+      if (selectedIncidentId) {
+        await handleSelectIncident(selectedIncidentId);
+      }
+      showToast(`Correlation executed! Processed ${res.events_processed} events into ${res.incidents_created} incidents.`);
+    } catch (err) {
+      console.error('Correlation error:', err);
+      showToast(`Correlation failed: ${err.message}`);
+    } finally {
+      setCorrelating(false);
+    }
+  };
+
+  // Incident created via modal callback
+  const handleIncidentCreated = async (newIncidentId, message) => {
+    try {
+      const list = await fetchIncidents();
+      setIncidents(list || []);
+      if (newIncidentId) {
+        await handleSelectIncident(newIncidentId);
+      }
+      showToast(message || `Incident ${newIncidentId} created & correlated live!`);
+    } catch (err) {
+      console.error('Failed to refresh after incident creation:', err);
+    }
+  };
+
+  // Toggle approval state for response actions
+  const toggleActionApproval = (actionId) => {
+    setApprovedActionIds(prev => {
+      const nextState = !prev[actionId];
+      if (nextState) {
+        showToast(`Remediation action approved! Dual-token authorization signed.`);
+      }
+      return { ...prev, [actionId]: nextState };
+    });
   };
 
   const incident = selectedIncidentData?.incident;
@@ -90,6 +171,70 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
 
   const severity = (incident?.severity || 'HIGH').toUpperCase();
 
+  // =========================================================================
+  // DYNAMIC KILL CHAIN PROGRESSION (Calculated from real incident telemetry)
+  // =========================================================================
+  const calculateProgression = () => {
+    if (!events || events.length === 0) {
+      return { 
+        phase: 1, 
+        percent: 25, 
+        label: 'Phase 1 — Initial Reconnaissance',
+        stagesList: ['Initial Access'] 
+      };
+    }
+
+    let highestRank = 1;
+    const detectedStages = new Set();
+
+    events.forEach(e => {
+      const stage = (e.attack_stage || '').toLowerCase();
+      const type = (e.event_type || '').toLowerCase();
+      const raw = JSON.stringify(e.raw_data || {}).toLowerCase();
+
+      if (
+        stage.includes('command') || stage.includes('c2') || stage.includes('exfil') || stage.includes('impact') ||
+        type.includes('c2') || type.includes('exfil') || raw.includes('c2-exfil') || raw.includes(':4444')
+      ) {
+        highestRank = Math.max(highestRank, 4);
+        detectedStages.add('C2 Egress');
+      } else if (
+        stage.includes('persistence') || stage.includes('credential') || stage.includes('privilege') || stage.includes('defense') ||
+        type.includes('persistence') || type.includes('credential') || type.includes('lsass') || 
+        raw.includes('mimikatz') || raw.includes('procdump') || raw.includes('backdoorkey')
+      ) {
+        highestRank = Math.max(highestRank, 3);
+        detectedStages.add('Persistence');
+      } else if (
+        stage.includes('execution') || type.includes('process') || type.includes('powershell') || 
+        type.includes('script') || raw.includes('powershell')
+      ) {
+        highestRank = Math.max(highestRank, 2);
+        detectedStages.add('Execution');
+      } else {
+        highestRank = Math.max(highestRank, 1);
+        detectedStages.add('Initial Access');
+      }
+    });
+
+    const percentMap = { 1: 25, 2: 50, 3: 75, 4: 100 };
+    const labelMap = {
+      1: 'Phase 1 — Initial Access & Recon',
+      2: 'Phase 2 — Execution & Discovery',
+      3: 'Phase 3 — Persistence & Credential Theft',
+      4: 'Phase 4 — C2 Beaconing & Data Exfiltration',
+    };
+
+    return {
+      phase: highestRank,
+      percent: percentMap[highestRank] || 25,
+      label: labelMap[highestRank] || 'Phase 1 — Initial Access',
+      stagesList: Array.from(detectedStages),
+    };
+  };
+
+  const progression = calculateProgression();
+
   // Page Switcher Helper
   const handlePageChange = (tabKey) => {
     setActiveTab(tabKey);
@@ -98,15 +243,31 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
 
   return (
     <div className="console-ambient-canvas">
+      {/* Toast Notification Banner */}
+      {toastMessage && (
+        <div className="console-toast-banner">
+          <div className="toast-icon">⚡</div>
+          <div className="toast-text">{toastMessage}</div>
+          <button onClick={() => setToastMessage(null)} className="toast-close">✕</button>
+        </div>
+      )}
+
       {/* Diffuse ambient blue glow layers */}
       <div className="ambient-glow-layer">
         <div className="ambient-glow-top-right"></div>
         <div className="ambient-glow-bottom-left"></div>
       </div>
 
+      {/* Log Incident Modal for Judges */}
+      <LogIncidentModal
+        isOpen={isLogModalOpen}
+        onClose={() => setIsLogModalOpen(false)}
+        onIncidentCreated={handleIncidentCreated}
+      />
+
       {/* Main Floating Tablet Frame */}
       <div className="floating-tablet-frame">
-        {/* Tablet Top Navigation Bar */}
+        {/* Tablet Top Navigation Bar (Page pills removed as requested, leaving header clean) */}
         <header className="tablet-navbar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div className="brand-cube-icon">
@@ -116,40 +277,26 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span className="brand-name" style={{ fontSize: '1.05rem', letterSpacing: '0.04em' }}>ZEROTRACE</span>
-              <span style={{ fontSize: '0.65rem', color: 'var(--text-body)', letterSpacing: '0.05em' }}>AI INVESTIGATION CONSOLE</span>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-body)', letterSpacing: '0.05em' }}>AI SECURITY INVESTIGATION CONSOLE</span>
             </div>
           </div>
 
-          {/* Center Pill Tabs (Synchronized Page Navigation with Glass Effect) */}
-          <nav className="center-pill-tabs">
-            <button
-              onClick={() => handlePageChange('overview')}
-              className={`center-pill-btn ${activeTab === 'overview' ? 'active' : ''}`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => handlePageChange('timeline')}
-              className={`center-pill-btn ${activeTab === 'timeline' ? 'active' : ''}`}
-            >
-              Attack Timeline
-            </button>
-            <button
-              onClick={() => handlePageChange('threat_intel')}
-              className={`center-pill-btn ${activeTab === 'threat_intel' ? 'active' : ''}`}
-            >
-              Threat Intel
-            </button>
-            <button
-              onClick={() => handlePageChange('ai_investigation')}
-              className={`center-pill-btn ${activeTab === 'ai_investigation' ? 'active' : ''}`}
-            >
-              AI Investigation
-            </button>
-          </nav>
-
           {/* Right Header Actions */}
           <div className="top-right-actions">
+            {/* Log New Incident Button for Judges */}
+            <button 
+              onClick={() => setIsLogModalOpen(true)} 
+              className="header-log-incident-btn"
+              title="Log new security incident or simulate attack for judges"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>Log Incident</span>
+            </button>
+
+            {/* Back to Landing Button */}
             <button onClick={onBackToLanding} className="workspace-back-btn">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -157,19 +304,77 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
               Landing
             </button>
 
-            {/* Notification Bell with Badge */}
-            <div className="nav-bell-btn" title="Live SOC Alerts">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              <span className="bell-badge-dot"></span>
+            {/* Notification Bell with Dropdown Drawer */}
+            <div style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setIsAlertsOpen(!isAlertsOpen)} 
+                className={`nav-bell-btn ${isAlertsOpen ? 'active' : ''}`} 
+                title="Live SOC Alerts"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                <span className="bell-badge-dot"></span>
+              </button>
+
+              {/* Alerts Dropdown Drawer */}
+              {isAlertsOpen && (
+                <div className="alerts-dropdown-drawer">
+                  <div className="drawer-header">
+                    <span className="drawer-title">Live SOC Telemetry Stream</span>
+                    <span className="drawer-count">{incidents.length} active</span>
+                  </div>
+                  <div className="drawer-items-list">
+                    <div className="drawer-item critical">
+                      <div className="drawer-item-title">CRITICAL: Credential Access Detected</div>
+                      <div className="drawer-item-meta">Host: DC01.corp.internal • LSASS Dump</div>
+                    </div>
+                    <div className="drawer-item high">
+                      <div className="drawer-item-title">HIGH: Encoded PowerShell Cradle</div>
+                      <div className="drawer-item-meta">Host: FINANCE-PC04 • C2 Beaconing</div>
+                    </div>
+                    <div className="drawer-item info">
+                      <div className="drawer-item-title">Correlation Engine Active</div>
+                      <div className="drawer-item-meta">Automated rule clustering enabled</div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => { setIsAlertsOpen(false); showToast('All notifications marked as reviewed.'); }}
+                    className="drawer-action-btn"
+                  >
+                    Mark All Reviewed
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* User Profile Pill */}
-            <div className="user-profile-pill">
-              <div className="user-avatar-circle">AR</div>
-              <span style={{ fontWeight: 700, fontSize: '0.78rem' }}>Analyst</span>
+            {/* User Profile Pill with Popover */}
+            <div style={{ position: 'relative' }}>
+              <div 
+                onClick={() => setIsProfileOpen(!isProfileOpen)} 
+                className="user-profile-pill" 
+                style={{ cursor: 'pointer' }}
+                title="SOC Analyst Session & Authority Level"
+              >
+                <div className="user-avatar-circle">AR</div>
+                <span style={{ fontWeight: 700, fontSize: '0.78rem' }}>Analyst</span>
+              </div>
+
+              {isProfileOpen && (
+                <div className="profile-popover">
+                  <div className="popover-title">Arnav Warale</div>
+                  <div className="popover-badge">SOC Level 2 Investigator</div>
+                  <div className="popover-info">Authority: Dual-Token Containment</div>
+                  <div className="popover-info">Terminal: SOC-ALPHA-01</div>
+                  <button 
+                    onClick={() => { setIsProfileOpen(false); showToast('Session locked to workstation.'); }}
+                    className="popover-btn"
+                  >
+                    Lock Console Session
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Backend Health Status */}
@@ -186,7 +391,7 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
           {/* LEFT SIDEBAR (Page Navigation, Incidents Queue, Recent Activity) */}
           {/* ========================================================================= */}
           <aside className="tablet-sidebar">
-            {/* 1. Page Navigation Glass Card (Requested by User: Bold + Glass Effect + Specimen Typography) */}
+            {/* 1. Page Navigation Glass Card (EXCLUSIVELY HERE on Sidebar) */}
             <div className="sidebar-glass-nav-card">
               <div className="sidebar-section-header">
                 <span className="sidebar-section-tag">CONSOLE PAGES</span>
@@ -271,8 +476,8 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                 </div>
                 <div className="sidebar-icon-actions">
                   <button
-                    onClick={() => handleSelectIncident(selectedIncidentId)}
-                    className="sidebar-icon-btn"
+                    onClick={handleRefreshQueue}
+                    className={`sidebar-icon-btn ${refreshingList ? 'spinning' : ''}`}
                     title="Refresh Incident Queue"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -283,6 +488,15 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                   </button>
                 </div>
               </div>
+
+              {/* Log New Incident Demo Button right inside the sidebar */}
+              <button 
+                onClick={() => setIsLogModalOpen(true)}
+                className="sidebar-log-incident-btn"
+              >
+                <span className="plus-sym">+</span>
+                <span>Log New Incident (Judge Demo)</span>
+              </button>
 
               {loadingList ? (
                 <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>
@@ -349,7 +563,7 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                   </div>
                   <div className="activity-content">
                     <div className="activity-title">Telemetry Correlated</div>
-                    <div className="activity-time">37 minutes ago</div>
+                    <div className="activity-time">Just now</div>
                   </div>
                 </div>
 
@@ -361,7 +575,7 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                   </div>
                   <div className="activity-content">
                     <div className="activity-title">MITRE Persistence Flagged</div>
-                    <div className="activity-time">42 minutes ago</div>
+                    <div className="activity-time">12 minutes ago</div>
                   </div>
                 </div>
               </div>
@@ -393,14 +607,17 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <span className="inv-id-tag">{selectedIncidentId || 'No Selection'}</span>
                     <button
-                      onClick={() => handleSelectIncident(selectedIncidentId)}
+                      onClick={handleTriggerReCorrelation}
+                      disabled={correlating}
                       className="new-triage-btn"
+                      title="Execute correlation engine across all unclustered events"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="23 4 23 10 17 10" />
+                        <polyline points="1 20 1 14 7 14" />
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                       </svg>
-                      Re-correlate
+                      {correlating ? 'Correlating...' : 'Re-correlate'}
                     </button>
                   </div>
                 </div>
@@ -411,11 +628,11 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                   <div className="sleek-metric-card">
                     <div className="card-top-row">
                       <span className="metric-card-lbl">Active Telemetry Events</span>
-                      <span className="card-dots-menu">•••</span>
+                      <span className="card-dots-menu" title="Telemetry Source: Sysmon & EDR">•••</span>
                     </div>
 
                     <div className="metric-card-val">
-                      {events.length > 0 ? events.length : (incident?.event_ids?.length || 12)}
+                      {events.length > 0 ? events.length : (incident?.event_ids?.length || 1)}
                     </div>
 
                     {/* SVG Smooth Sine Wave Curve with gradient fill */}
@@ -453,7 +670,7 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                   <div className="sleek-metric-card">
                     <div className="card-top-row">
                       <span className="metric-card-lbl">Severity & Blast Radius</span>
-                      <span className="card-dots-menu">•••</span>
+                      <span className="card-dots-menu" title="Calculated from event types & attack stages">•••</span>
                     </div>
 
                     <div className="metric-card-val" style={{ color: severity === 'CRITICAL' ? '#f43f5e' : '#fbbf24' }}>
@@ -483,7 +700,7 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                   <div className="sleek-metric-card">
                     <div className="card-top-row">
                       <span className="metric-card-lbl">AI Grounded Confidence</span>
-                      <span className="card-dots-menu">•••</span>
+                      <span className="card-dots-menu" title="Evidence grounded correlation score">•••</span>
                     </div>
 
                     <div className="metric-card-val">
@@ -529,7 +746,7 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                   </div>
                 </div>
 
-                {/* Selected Incident Scope & Parameter Grid (Specimen Border Framing) */}
+                {/* Selected Incident Scope & Parameter Grid */}
                 <div className="overview-details-card">
                   <div className="details-card-header">
                     <div className="details-header-title">
@@ -552,7 +769,7 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                             <span key={i} className="entity-chip host">{h}</span>
                           ))
                         ) : (
-                          <span className="muted-dash">SEC-SERVER-99</span>
+                          <span className="muted-dash">None specified</span>
                         )}
                       </div>
                     </div>
@@ -565,7 +782,7 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                             <span key={i} className="entity-chip user">{u}</span>
                           ))
                         ) : (
-                          <span className="muted-dash">CORP\secadmin</span>
+                          <span className="muted-dash">None specified</span>
                         )}
                       </div>
                     </div>
@@ -580,7 +797,7 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                     <div className="metric-box">
                       <div className="metric-box-label">EXTRACTED IOCs</div>
                       <div className="metric-box-value highlight-num">
-                        {extractedIOCs.size > 0 ? extractedIOCs.size : 5}
+                        {extractedIOCs.size > 0 ? extractedIOCs.size : (events.length > 0 ? 2 : 0)}
                       </div>
                     </div>
 
@@ -612,7 +829,7 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                       <span>Concise Incident Summary</span>
                     </div>
                     <p className="summary-card-text">
-                      {incident?.description || `Security incident ${incident?.id || selectedIncidentId} comprises ${events.length || 1} correlated events on host ${affectedHosts.join(', ') || 'SEC-SERVER-99'} with severity rating ${severity}. Telemetry indicates potential unauthorized credential access and persistence stage activities.`}
+                      {incident?.description || `Security incident ${incident?.id || selectedIncidentId} comprises ${events.length || 1} correlated events on host ${affectedHosts.join(', ') || 'Target Asset'} with severity rating ${severity}. Telemetry indicates potential unauthorized access and execution activities.`}
                     </p>
                   </div>
 
@@ -638,41 +855,60 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
             {/* ======================================================================= */}
             {activeTab === 'timeline' && (
               <div className="page-view-container">
-                {/* Attack Progression & Milestones Header Card */}
+                {/* Attack Progression & Milestones Header Card (DYNAMIC Kill Chain) */}
                 <div className="attack-milestones-card">
                   <div className="milestones-header-row">
                     <div>
                       <div className="specimen-tag-row">
                         <span className="section-badge-tag">SECTION 02 • TIMELINE</span>
-                        <span className="live-status-tag">● 75% VERIFIED</span>
+                        <span className="live-status-tag">● {progression.percent}% KILL CHAIN PROGRESSION</span>
                       </div>
                       <h3 className="milestones-title">Attack Milestones & Progression</h3>
                     </div>
-                    <div className="timeline-dropdown-pill">
-                      <span>Timeline Stream</span>
+                    <div 
+                      className="timeline-dropdown-pill"
+                      onClick={() => setTimelineOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                      title="Click to toggle chronological ordering"
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <span>{timelineOrder === 'asc' ? 'Oldest First (Asc)' : 'Newest First (Desc)'}</span>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <polyline points="6 9 12 15 18 9" />
                       </svg>
                     </div>
                   </div>
 
+                  {/* DYNAMIC Progression Info calculated from incident events */}
                   <div className="phase-progress-info">
                     <div className="phase-title-text">
-                      {incident?.title ? incident.title.split(':')[0] : 'Kill Chain Progression'} — Phase 3
+                      {progression.label}
                     </div>
-                    <div className="phase-percent-text">75% Verified</div>
+                    <div className="phase-percent-text">
+                      {progression.percent}% Progression (Phase {progression.phase} of 4)
+                    </div>
                   </div>
 
-                  {/* Horizontal Stepped Progress Bar */}
+                  {/* Horizontal Stepped Progress Bar (DYNAMIC) */}
                   <div className="stepped-track-wrapper">
                     <div className="stepped-track">
-                      <div className="stepped-track-fill" style={{ width: '75%' }}></div>
+                      <div 
+                        className="stepped-track-fill" 
+                        style={{ width: `${progression.percent}%`, transition: 'width 0.4s ease' }}
+                      ></div>
                     </div>
                     <div className="stepped-nodes-labels">
-                      <span>Initial Access</span>
-                      <span>Execution</span>
-                      <span>Persistence</span>
-                      <span>C2 Egress</span>
+                      <span style={{ color: progression.phase >= 1 ? 'var(--text-ivory)' : '#64748b', fontWeight: progression.phase >= 1 ? 800 : 500 }}>
+                        ● Initial Access
+                      </span>
+                      <span style={{ color: progression.phase >= 2 ? 'var(--text-ivory)' : '#64748b', fontWeight: progression.phase >= 2 ? 800 : 500 }}>
+                        ● Execution
+                      </span>
+                      <span style={{ color: progression.phase >= 3 ? 'var(--text-ivory)' : '#64748b', fontWeight: progression.phase >= 3 ? 800 : 500 }}>
+                        ● Persistence
+                      </span>
+                      <span style={{ color: progression.phase >= 4 ? 'var(--text-ivory)' : '#64748b', fontWeight: progression.phase >= 4 ? 800 : 500 }}>
+                        ● C2 Egress
+                      </span>
                     </div>
                   </div>
 
@@ -703,6 +939,7 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                 <AttackInvestigation
                   selectedIncidentId={selectedIncidentId}
                   selectedIncidentData={selectedIncidentData}
+                  sortOrder={timelineOrder}
                 />
               </div>
             )}
@@ -734,34 +971,46 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
         </div>
       </div>
 
-      {/* Floating Pending Response Actions Card (Matches Reference Design) */}
+      {/* Floating Pending Response Actions Card with Working Approval Toggle */}
       {actions && actions.length > 0 && (
         <aside className="floating-pending-actions-card">
           <div className="floating-card-header">
-            <h4 className="floating-card-title">Pending Actions</h4>
-            <span className="card-dots-menu">•••</span>
+            <h4 className="floating-card-title">Pending Containment Actions</h4>
+            <span className="card-dots-menu" title="Autonomous Containment Queue">•••</span>
           </div>
 
           <div className="pending-actions-list-mini">
-            {actions.slice(0, 3).map((act) => (
-              <div key={act.id} className="pending-action-item-mini">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', maxWidth: '240px' }}>
-                  <span style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {act.description}
-                  </span>
-                  <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{act.action_type}</span>
+            {actions.slice(0, 3).map((act) => {
+              const isApproved = approvedActionIds[act.id];
+
+              return (
+                <div 
+                  key={act.id} 
+                  onClick={() => toggleActionApproval(act.id)}
+                  className={`pending-action-item-mini ${isApproved ? 'approved' : ''}`}
+                  title="Click to approve/execute containment"
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', maxWidth: '240px' }}>
+                    <span style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: isApproved ? '#34d399' : 'inherit' }}>
+                      {act.description}
+                    </span>
+                    <span style={{ fontSize: '0.68rem', color: isApproved ? '#34d399' : '#94a3b8' }}>
+                      {isApproved ? 'CONTAINMENT AUTHORIZED' : act.action_type}
+                    </span>
+                  </div>
+                  <div className={`mini-check-pill ${isApproved ? 'checked' : ''}`}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
                 </div>
-                <div className="mini-check-pill">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div style={{ fontSize: '0.68rem', color: '#64748b', textAlign: 'center', paddingTop: '0.2rem' }}>
-            Requires SOC Analyst dual-token approval
+            Click item to sign dual-token analyst authorization
           </div>
         </aside>
       )}

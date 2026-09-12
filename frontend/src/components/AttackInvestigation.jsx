@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchIncidentTimeline, fetchEventById } from '../services/api';
 
-export default function AttackInvestigation({ selectedIncidentId, selectedIncidentData }) {
+export default function AttackInvestigation({ selectedIncidentId, selectedIncidentData, sortOrder = 'asc' }) {
   const [timeline, setTimeline] = useState([]);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
   const [errorTimeline, setErrorTimeline] = useState(null);
@@ -24,7 +24,10 @@ export default function AttackInvestigation({ selectedIncidentId, selectedIncide
       try {
         const data = await fetchIncidentTimeline(selectedIncidentId);
         // Ensure chronological ordering by timestamp
-        const sorted = [...data].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        const sorted = [...data].sort((a, b) => {
+          const diff = new Date(a.timestamp) - new Date(b.timestamp);
+          return sortOrder === 'desc' ? -diff : diff;
+        });
         setTimeline(sorted);
         // Automatically expand first milestone if available
         if (sorted.length > 0 && !expandedEventId) {
@@ -38,7 +41,7 @@ export default function AttackInvestigation({ selectedIncidentId, selectedIncide
     };
 
     loadTimeline();
-  }, [selectedIncidentId]);
+  }, [selectedIncidentId, sortOrder]);
 
   // Expand / collapse and fetch real event raw_data
   const handleToggleEvent = async (sourceEventId) => {

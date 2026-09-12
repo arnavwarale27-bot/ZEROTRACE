@@ -134,17 +134,34 @@ export async function fetchIOCs() {
   }
 }
 
-export async function triggerCorrelation(timeWindowMinutes = 60) {
+export async function triggerCorrelation(timeWindowMinutes = 1440, minEvents = 1) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/correlation/run`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/correlation/run?time_window_minutes=${timeWindowMinutes}&min_events=${minEvents}`, {
       method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ time_window_minutes: timeWindowMinutes }),
+      headers: { 'Accept': 'application/json' },
     });
     if (!response.ok) throw new Error(`Failed to run correlation: ${response.statusText}`);
     return await response.json();
   } catch (error) {
     console.error('triggerCorrelation error:', error);
+    throw error;
+  }
+}
+
+export async function ingestSingleEvent(rawLog, source = null) {
+  try {
+    const url = source 
+      ? `${API_BASE_URL}/api/v1/events/ingest?source=${encodeURIComponent(source)}` 
+      : `${API_BASE_URL}/api/v1/events/ingest`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(rawLog),
+    });
+    if (!response.ok) throw new Error(`Failed to ingest event: ${response.statusText}`);
+    return await response.json();
+  } catch (error) {
+    console.error('ingestSingleEvent error:', error);
     throw error;
   }
 }

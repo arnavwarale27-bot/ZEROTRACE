@@ -564,123 +564,38 @@ export default function InvestigationWorkspace({ onBackToLanding }) {
                 {/* Top 3 Sleek Metric Cards */}
                 <div className="metric-cards-row">
                   {/* Metric Card 1: Active Events with Sine Wave Curve */}
-                  <div className="sleek-metric-card">
+                  <div className="sleek-metric-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1.5rem', background: 'transparent', border: '1px solid var(--bg-border)' }}>
                     <div className="card-top-row">
-                      <span className="metric-card-lbl">Active Telemetry Events</span>
+                      <span className="metric-card-lbl" style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Active Telemetry Events</span>
                       <span className="card-dots-menu" title="Telemetry Source: Sysmon & EDR">•••</span>
                     </div>
 
-                    <div className="metric-card-val">
+                    <div className="metric-card-val" style={{ fontSize: '4rem', fontWeight: 900, color: 'var(--text-ivory)', letterSpacing: '-0.02em', marginTop: '1rem' }}>
                       {events.length > 0 ? events.length : (incident?.event_ids?.length || 1)}
-                    </div>
-
-                    {/* SVG Smooth Sine Wave Curve with gradient fill */}
-                    <div className="wave-curve-container">
-                      <svg viewBox="0 0 240 55" className="wave-curve-svg" preserveAspectRatio="none">
-                        <defs>
-                          <linearGradient id="waveGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.45" />
-                            <stop offset="100%" stopColor="#1d4ed8" stopOpacity="0.0" />
-                          </linearGradient>
-                        </defs>
-                        <path
-                          d="M 0,40 Q 30,50 60,32 T 120,38 T 180,18 T 240,10 L 240,55 L 0,55 Z"
-                          fill="url(#waveGrad)"
-                        />
-                        <path
-                          d="M 0,40 Q 30,50 60,32 T 120,38 T 180,18 T 240,10"
-                          fill="none"
-                          stroke="#60a5fa"
-                          strokeWidth="2.5"
-                        />
-                      </svg>
-                      <div className="wave-axis-labels">
-                        <span>Jan</span>
-                        <span>Feb</span>
-                        <span>Mar</span>
-                        <span>Apr</span>
-                        <span>Sep</span>
-                        <span>Dec</span>
-                      </div>
                     </div>
                   </div>
 
                   {/* Metric Card 2: Severity & Scope with Vertical Rounded Pill Bars */}
-                  <div className="sleek-metric-card">
+                  <div className="sleek-metric-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1.5rem', background: 'transparent', border: '1px solid var(--bg-border)' }}>
                     <div className="card-top-row">
-                      <span className="metric-card-lbl">Severity & Blast Radius</span>
+                      <span className="metric-card-lbl" style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Severity & Blast Radius</span>
                       <span className="card-dots-menu" title="Calculated from event types & attack stages">•••</span>
                     </div>
 
-                    <div className="metric-card-val" style={{ color: severity === 'CRITICAL' ? '#f43f5e' : '#fbbf24' }}>
+                    <div className="metric-card-val" style={{ fontSize: '4rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em', marginTop: '1rem', color: severity === 'CRITICAL' ? '#f43f5e' : (severity === 'HIGH' ? '#fbbf24' : 'var(--text-ivory)') }}>
                       {severity}
-                    </div>
-
-                    {/* Vertical Rounded Pill Bar Chart */}
-                    <div className="pill-bars-container">
-                      <div className="pill-bar" style={{ height: '35%' }}></div>
-                      <div className="pill-bar" style={{ height: '65%' }}></div>
-                      <div className="pill-bar" style={{ height: '45%' }}></div>
-                      <div className="pill-bar active" style={{ height: '90%' }}></div>
-                      <div className="pill-bar" style={{ height: '55%' }}></div>
-                      <div className="pill-bar" style={{ height: '75%' }}></div>
-                    </div>
-                    <div className="wave-axis-labels">
-                      <span>Sysmon</span>
-                      <span>EDR</span>
-                      <span>Net</span>
-                      <span>DNS</span>
-                      <span>Auth</span>
-                      <span>Audit</span>
                     </div>
                   </div>
 
                   {/* Metric Card 3: AI Grounded Confidence with Circular Radial Ring */}
-                  <div className="sleek-metric-card">
+                  <div className="sleek-metric-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1.5rem', background: 'transparent', border: '1px solid var(--bg-border)' }}>
                     <div className="card-top-row">
-                      <span className="metric-card-lbl">AI Grounded Confidence</span>
+                      <span className="metric-card-lbl" style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>AI Grounded Confidence</span>
                       <span className="card-dots-menu" title="Evidence grounded correlation score">•••</span>
                     </div>
 
-                    <div className="metric-card-val">
+                    <div className="metric-card-val" style={{ fontSize: '4rem', fontWeight: 900, letterSpacing: '-0.02em', marginTop: '1rem', color: 'var(--text-ivory)' }}>
                       {confidenceScore}%
-                    </div>
-
-                    {/* Radial Progress Ring */}
-                    <div className="radial-progress-container">
-                      <svg viewBox="0 0 80 80" className="radial-gauge-svg">
-                        <circle
-                          cx="40"
-                          cy="40"
-                          r="32"
-                          stroke="rgba(255,255,255,0.08)"
-                          strokeWidth="6"
-                          fill="none"
-                        />
-                        <circle
-                          cx="40"
-                          cy="40"
-                          r="32"
-                          stroke="#60a5fa"
-                          strokeWidth="6"
-                          strokeDasharray="201"
-                          strokeDashoffset={201 - (201 * confidenceScore) / 100}
-                          strokeLinecap="round"
-                          fill="none"
-                          transform="rotate(-90 40 40)"
-                        />
-                        <text
-                          x="40"
-                          y="45"
-                          textAnchor="middle"
-                          fill="var(--text-ivory)"
-                          fontSize="14"
-                          fontWeight="800"
-                          fontFamily="var(--font-brand-title)"
-                        >
-                          {confidenceScore}%
-                        </text>
-                      </svg>
                     </div>
                   </div>
                 </div>
